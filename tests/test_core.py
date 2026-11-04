@@ -209,6 +209,36 @@ class CoreTest(unittest.TestCase):
             self.assertEqual(f["artist"], ["测试歌手", "合作歌手"])
             self.assertEqual(str(f["album"][0]), "测试专辑")
 
+    def test_ncm_stream(self):
+        """惰性解密流：任意偏移读出的字节必须与全量解密一致"""
+        import io as _io
+        audio = bytes(range(256)) * 64
+        blob = build_ncm(audio, META, b"")
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "s.ncm"
+            p.write_bytes(blob)
+            ncm = c.parse_ncm(p)
+            full = audio  # 解密的期望输出就是明文
+            s = c.NcmStream(ncm)
+            self.assertEqual(s.read(1000), full[:1000])
+            self.assertEqual(s.tell(), 1000)
+            s.seek(5000)
+            self.assertEqual(s.read(777), full[5000:5777])
+            s.seek(-100, 2)
+            self.assertEqual(s.read(), full[-100:])
+            self.assertEqual(s.tell(), len(audio))
+            s.seek(1000, 0)
+            s.seek(234, 1)
+            self.assertEqual(s.read(10), full[1234:1244])
+            s.seek(0)
+            self.assertEqual(s.read(), full)
+            s.close()
+            br = _io.BufferedReader(c.NcmStream(ncm), 4096)
+            self.assertEqual(br.read(512), full[:512])
+            br.seek(4096 * 3)
+            self.assertEqual(br.read(512), full[4096 * 3:4096 * 3 + 512])
+            br.close()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

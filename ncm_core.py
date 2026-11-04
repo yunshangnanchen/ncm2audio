@@ -27,6 +27,7 @@ NCM 容器结构（依据开源项目 ncmdump 系列逆向结论）::
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import struct
@@ -49,6 +50,7 @@ __all__ = [
     "convert_many",
     "collect_ncm_files",
     "collect_media_files",
+    "NcmStream",
     "meta_title",
     "meta_artists",
     "meta_album",
@@ -484,6 +486,71 @@ def decrypt_audio_to_file(ncm: NcmFile, out_path, chunk: int = _CHUNK) -> int:
             dst.write(xor_pattern(data, pat))
             written += len(data)
     return written
+
+
+# --------------------------------------------------------------------------
+# 惰性解密流：把 .ncm 的音频段包装成可读、可 seek 的文件对象（内存播放用）
+# --------------------------------------------------------------------------
+class NcmStream(io.RawIOBase):
+    """可随机读取的 NCM 音频解密流
+
+    - read/seek 语义与普通文件一致：密钥流按当前位置旋转，任意偏移读出的
+      字节与 decrypt_audio_bytes 全量解密结果完全一致
+    - 供 pygame 等播放器“边读边解”，内存占用恒定（约等于读写缓冲）
+    """
+
+    def __init__(self, ncm: "NcmFile"):
+        super().__init__()
+        self._ncm = ncm
+        self._pos = 0
+        self._fh = open(ncm.path, "rb")
+
+    def readable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return True
+
+    def readinto(self, b) -> int:
+        n = min(len(b), self._ncm.audio_size - self._pos)
+        if n <= 0:
+            return 0
+        self._fh.seek(self._ncm.audio_offset + self._pos)
+        data = self._fh.read(n)
+        out = decrypt_audio_bytes(self._ncm, data, self._pos)
+        n = len(out)
+        b[:n] = out
+        self._pos += n
+        return n
+
+    def read(self, n: int = -1) -> bytes:
+        if n is None or n < 0:
+            n = max(0, self._ncm.audio_size - self._pos)
+        buf = bytearray(min(n, self._ncm.audio_size - self._pos))
+        got = self.readinto(buf)
+        return bytes(buf[:got])
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        if whence == 0:
+            self._pos = offset
+        elif whence == 1:
+            self._pos += offset
+        elif whence == 2:
+            self._pos = self._ncm.audio_size + offset
+        else:
+            raise ValueError(f"无效的 whence: {whence!r}")
+        self._pos = max(0, min(self._pos, self._ncm.audio_size))
+        return self._pos
+
+    def tell(self) -> int:
+        return self._pos
+
+    def close(self):
+        try:
+            self._fh.close()
+        except OSError:
+            pass
+        super().close()
 
 
 def guess_format(head: bytes) -> str:
