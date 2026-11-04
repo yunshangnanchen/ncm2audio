@@ -1,0 +1,4 @@
+# NCM 解密与终端播放器需要的依赖（Python 3.9+）
+pillow>=10.0
+pygame-ce>=2.5
+mutagen>=1.47

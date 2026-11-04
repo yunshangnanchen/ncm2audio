@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# 虚拟环境
+venv/
+.venv/
+
+# 音频/歌词（用户数据，不入库）
+*.ncm
+*.mp3
+*.flac
+*.wav
+*.ogg
+*.m4a
+*.lrc
+
+# 临时文件
+*.tmp
+_probe_out.*
