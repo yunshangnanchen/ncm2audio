@@ -3,7 +3,6 @@
 
 import base64
 import json
-import os
 import struct
 import sys
 import tempfile

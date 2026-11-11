@@ -4,12 +4,15 @@
 
 用法::
 
-    python ncm2audio.py                     # 打开播放器界面（扫描当前目录）
-    python ncm2audio.py a.ncm b.ncm         # 批量解密文件
-    python ncm2audio.py D:\\music            # 批量解密文件夹（递归）
-    python ncm2audio.py --dir D:\\music      # 播放器界面扫描指定目录
+    ncm2audio                              # 打开播放器界面（扫描当前目录）
+    ncm2audio a.ncm b.ncm                  # 批量解密文件
+    ncm2audio D:\\music                     # 批量解密文件夹（递归）
+    ncm2audio --dir D:\\music               # 播放器界面扫描指定目录
 
 把 .ncm 文件或文件夹直接拖到「拖入即解密.bat」上也可以一键解密。
+
+加入 PATH 后可在任意目录直接使用 ``ncm2audio`` 命令，默认扫描**运行命令时所在的
+目录**（而不是程序安装目录），运行 ``安装到PATH.bat`` 即可完成配置。
 """
 
 from __future__ import annotations
@@ -25,7 +28,20 @@ if str(ROOT) not in sys.path:
 
 import ncm_core as core
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
+
+
+def default_scan_dir() -> Path:
+    """全局调用时的默认扫描目录：当前工作目录。
+
+    从 PATH 里调用 ``ncm2audio`` 时，用户期望扫描的是「我现在所在的目录」，
+    而不是程序安装目录。cwd 取不到（目录被删除 / 无权限）时退回脚本目录。
+    """
+    try:
+        cwd = Path.cwd()
+    except OSError:
+        return ROOT
+    return cwd if cwd.is_dir() else ROOT
 
 
 def _setup_console() -> None:
@@ -93,9 +109,9 @@ def main(argv=None) -> int:
         description="网易云音乐 NCM 解密工具 / 终端播放器（拖入文件或文件夹即可解密）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="示例：\n"
-               "  python ncm2audio.py                    打开播放器（扫描当前目录）\n"
-               "  python ncm2audio.py song.ncm           解密单个文件\n"
-               "  python ncm2audio.py D:\\music -o D:\\out  解密整个文件夹到指定目录\n",
+               "  ncm2audio                              打开播放器（扫描当前目录）\n"
+               "  ncm2audio song.ncm                     解密单个文件\n"
+               "  ncm2audio D:\\music -o D:\\out           解密整个文件夹到指定目录\n",
     )
     parser.add_argument("paths", nargs="*", help="要解密的 .ncm 文件或文件夹（可多个）")
     parser.add_argument("-o", "--out", metavar="目录", help="输出目录（默认与源文件同目录）")
@@ -136,7 +152,7 @@ def main(argv=None) -> int:
 
     if args.screenshot:
         import ncm_tui
-        scan_dir = Path(args.dir) if args.dir else (Path(args.paths[0]) if args.paths else Path.cwd())
+        scan_dir = Path(args.dir) if args.dir else (Path(args.paths[0]) if args.paths else default_scan_dir())
         if scan_dir.is_file():
             scan_dir = scan_dir.parent
         try:
@@ -155,7 +171,7 @@ def main(argv=None) -> int:
 
     # 播放器界面
     import ncm_tui
-    scan_dir = Path(args.dir) if args.dir else Path.cwd()
+    scan_dir = Path(args.dir) if args.dir else default_scan_dir()
     if not scan_dir.is_dir():
         print(f"目录不存在：{scan_dir}")
         return 2

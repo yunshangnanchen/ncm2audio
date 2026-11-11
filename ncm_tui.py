@@ -17,14 +17,13 @@ import base64
 import io
 import math
 import os
-import random
 import re
 import shutil
 import subprocess
 import sys
 import time
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -1374,7 +1373,7 @@ class App:
         if rows <= 0:
             return
         if not items:
-            s.put(x0 + 2, list_top + 1, "（当前目录没有可播放的文件）", fg=FG_FAINT, bg=BG)
+            s.put(x0 + 2, list_top + 1, "（此目录没有 .ncm / 音频文件）", fg=FG_FAINT, bg=BG)
             return
         self.sel = max(0, min(self.sel, len(items) - 1))
         if self.sel < self.scroll:
@@ -1687,8 +1686,8 @@ class Terminal:
 def run_tui(directory: Path, cover_mode: str = "auto", filter_mode: str = "all") -> int:
     if not sys.stdout.isatty() or not sys.stdin.isatty():
         print("播放器界面需要在终端窗口中运行。")
-        print("用法：python ncm2audio.py            # 扫描当前目录")
-        print("      python ncm2audio.py --dir D:\\music")
+        print("用法：ncm2audio                        # 扫描当前目录")
+        print("      ncm2audio --dir D:\\music")
         return 1
     if cover_mode == "auto":
         cover_mode = detect_cover_mode(probe=True)

@@ -374,7 +374,7 @@ def main():
                   f"{ms(r['c_time']):>10}")
 
     # 写报告
-    report = ROOT / "播放方案测试报告.md"
+    report = ROOT / "docs" / "播放方案测试报告.md"
     with open(report, "w", encoding="utf-8") as f:
         f.write("# 三方案播放基准测试报告\n\n")
         f.write(f"- 样本：`{ncm.path.name}`（{c.human_size(ncm.audio_size)}，{ext}，"

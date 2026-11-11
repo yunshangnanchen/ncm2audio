@@ -23,12 +23,20 @@
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+### 界面预览
+
+| 播放器 | 播放频谱 |
+| --- | --- |
+| ![播放器](assets/预览-播放器.png) | ![播放频谱](assets/界面预览-播放频谱.png) |
+
+不支持图形协议的终端会自动回退成真彩字符画封面：![字符画回退](assets/预览-字符画回退.png)
+
 ## 功能特性
 
 - **一键解密**：把 `.ncm` 文件或整个文件夹拖到 `拖入即解密.bat` 上即可；文件夹递归扫描，大小写不敏感。
 - **纯标准库解密核心**：AES-128-ECB 与 NCM 密钥流全部用标准库实现，转换本身不依赖任何第三方包。
 - **标签与封面回填**：解密后自动把标题 / 歌手 / 专辑 / 封面写入 MP3、FLAC、M4A、OGG（需要 `mutagen`，可用 `--no-tag` 关闭）。
-- **终端播放器**：扫描当前目录的 NCM 与音频文件，Enter 播放（NCM 会先自动解密），空格暂停，方向键跳转。
+- **终端播放器**：扫描当前工作目录（可用 `--dir` 指定）的 NCM 与音频文件，Enter 播放（NCM 会先自动解密），空格暂停，方向键跳转。
 - **高清封面**：自动识别终端图形协议（kitty、iTerm2、Sixel），无法识别时回退到真彩半块字符画（`▀`）。
 - **歌词与频谱**：自动读取同名 `.lrc` 并随播放进度同步显示；播放时底部有律动频谱。
 - **零配置文件**：所有快捷键都显示在界面底栏。
@@ -37,36 +45,69 @@
 
 ```
 ncm2audio/
-├─ ncm2audio.py          # 入口：无参数启动播放器，带路径则批量解密
+├─ ncm2audio.py          # 入口：无参数启动播放器（扫描当前目录），带路径则批量解密
 ├─ ncm_core.py           # NCM 解析 / AES / 密钥流 / 转换 / 标签（纯标准库）
 ├─ ncm_tui.py            # 终端界面：布局、图形协议、播放后端、截图
+├─ ncm2audio.cmd         # 全局命令启动器（cmd / PowerShell，从 PATH 调用）
+├─ ncm2audio             # 同上（Git Bash / MSYS 用，无扩展名）
+├─ update_path.ps1       # 安装到PATH.bat 的实现：增删用户 PATH（保留原值类型）
 ├─ 拖入即解密.bat         # 把文件/文件夹拖到这里 → 批量解密
 ├─ 启动播放器.bat         # 双击打开播放器
+├─ 安装到PATH.bat         # 双击把本目录加入用户 PATH，实现全局 ncm2audio 命令
 ├─ 安装依赖.bat           # 创建 venv 并安装 pillow / pygame-ce / mutagen
+├─ bench_playback.py     # 播放后端基准测试（自带合成样本，不依赖真实音乐）
 ├─ requirements.txt
-├─ venv/                 # 虚拟环境（由安装脚本创建）
-└─ tests/                # 单元测试（30 项）
+├─ docs/                 # 设计与测试报告（内存播放方案、播放方案基准）
+├─ assets/               # 界面预览图
+├─ tests/                # 单元测试
+├─ venv/                 # 虚拟环境（由安装脚本创建，已忽略）
+└─ .workbuddy/           # 本地 Agent 工作数据（已忽略）
 ```
+
+> 仓库不包含任何 `.ncm` / 音频 / 歌词样本：这些属于用户数据，已由 `.gitignore` 排除。
+> 单元测试使用合成 NCM 数据自给自足；若根目录恰好放有真实样本，会额外跑一项兼容检查。
 
 ## 快速开始
 
 1. 安装 Python 3.9+（安装时勾选 **Add python.exe to PATH**）。
 2. 双击 `安装依赖.bat`：它会创建 `venv` 虚拟环境并安装依赖（默认走清华镜像）。
-3. 使用：
+3. 双击 `安装到PATH.bat`：把本目录加入用户 PATH（新开终端生效）。
+4. 使用：
+   - **全局命令**：在任意目录打开终端，输入 `ncm2audio` 即可播放/解密**当前目录**的音乐；
    - **解密**：把 `.ncm` 文件或文件夹拖到 `拖入即解密.bat` 上；
    - **播放器**：双击 `启动播放器.bat`。
+
+## 全局命令（加入 PATH）
+
+双击 `安装到PATH.bat` 后（或在终端里运行它），任意新开的 cmd / PowerShell /
+Git Bash 窗口都可以直接使用 `ncm2audio` 命令：
+
+```bat
+cd /d D:\Music
+ncm2audio                :: 打开播放器，扫描 D:\Music（当前目录）
+ncm2audio *.ncm          :: 解密当前目录所有 NCM
+```
+
+要点：
+
+- **扫描的是当前工作目录**，不是程序安装目录——在哪个目录运行，就扫哪个目录；
+- 命令不会改变你所在的位置，也不会往终端外的目录写任何文件；
+- 想撤销：运行 `安装到PATH.bat remove`（只删除自己添加的那一条，不动其它 PATH 项）；
+- 修改的是用户级 PATH，无需管理员权限；脚本已广播环境变更通知，新开终端即可生效。
+- 旧窗口看不到新命令属正常现象（PATH 在进程启动时快照），重开即可。
 
 ## 命令行用法
 
 ```bat
-python ncm2audio.py                          :: 打开播放器，扫描当前目录
-python ncm2audio.py 歌曲.ncm                  :: 解密单个文件（输出到同目录）
-python ncm2audio.py D:\Music                  :: 解密整个文件夹（递归）
-python ncm2audio.py D:\Music -o D:\Out        :: 输出到指定目录
-python ncm2audio.py *.ncm --overwrite         :: 覆盖已存在的输出
-python ncm2audio.py 歌曲.ncm --cover          :: 额外导出封面图片
-python ncm2audio.py --dir D:\Music            :: 播放器扫描指定目录
-python ncm2audio.py --self-test               :: 运行核心算法自测
+ncm2audio                                    :: 打开播放器，扫描当前目录
+ncm2audio 歌曲.ncm                            :: 解密单个文件（输出到同目录）
+ncm2audio D:\Music                           :: 解密整个文件夹（递归）
+ncm2audio D:\Music -o D:\Out                 :: 输出到指定目录
+ncm2audio *.ncm --overwrite                  :: 覆盖已存在的输出
+ncm2audio 歌曲.ncm --cover                   :: 额外导出封面图片
+ncm2audio --dir D:\Music                     :: 播放器扫描指定目录
+ncm2audio --self-test                        :: 运行核心算法自测
+python ncm2audio.py ...                      :: 上面所有命令也可以这样调用
 ```
 
 | 选项 | 说明 |
@@ -180,7 +221,11 @@ venv\Scripts\python.exe ncm2audio.py --self-test
 ```
 
 测试覆盖：AES FIPS-197 / NIST 向量、PKCS#7、密钥流往返、容器解析（含封面帧填充）、
-损坏文件、文件名清理、批量撞名、标签写入、Sixel 编码解码往返、界面渲染与截图。
+损坏文件、文件名清理、批量撞名、标签写入、Sixel 编码解码往返、界面渲染与截图、
+全局命令的默认扫描目录。共 33 项，全部使用合成数据，不需要真实音乐文件。
+
+设计与实测细节见 [docs/内存播放实现方案.md](docs/内存播放实现方案.md) 与
+[docs/播放方案测试报告.md](docs/播放方案测试报告.md)。
 
 ## 致谢
 

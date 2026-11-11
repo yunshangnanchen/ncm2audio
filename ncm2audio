@@ -1,0 +1,21 @@
+#!/bin/sh
+# ncm2audio - POSIX wrapper for Git Bash / MSYS2 / Cygwin users.
+# Lets you run `ncm2audio` from PATH; scans the current working directory.
+# Keep this file ASCII-only.
+
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+
+if [ -x "$DIR/venv/Scripts/python.exe" ]; then
+    exec "$DIR/venv/Scripts/python.exe" "$DIR/ncm2audio.py" "$@"
+fi
+if [ -x "$DIR/.venv/Scripts/python.exe" ]; then
+    exec "$DIR/.venv/Scripts/python.exe" "$DIR/ncm2audio.py" "$@"
+fi
+if command -v python >/dev/null 2>&1; then
+    exec python "$DIR/ncm2audio.py" "$@"
+fi
+if command -v py >/dev/null 2>&1; then
+    exec py -3 "$DIR/ncm2audio.py" "$@"
+fi
+echo "[ncm2audio] Python not found. Install Python 3.9+ or run the venv setup first." >&2
+exit 1
